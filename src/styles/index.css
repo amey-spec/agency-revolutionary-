@@ -1,0 +1,186 @@
+/* ============================================================
+   AI AUTOMATION AGENCY — Global CSS
+   Source: AGENCY_WEBSITE_SPEC.md §5, §6, §38
+   ============================================================ */
+
+/* ── Google Fonts ──────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+/* ── Design tokens ─────────────────────────────────────────── */
+:root {
+  /* Base backgrounds */
+  --color-black:      #080b0f;
+  --color-deep:       #0d1117;
+  --color-charcoal:   #141920;
+  --color-graphite:   #1c2330;
+  --color-surface:    #222b38;
+  --color-border:     #2a3441;
+  --color-border-alt: #1e2a36;
+
+  /* Text */
+  --color-text-primary:   #f0f2f5;
+  --color-text-secondary: #9aa5b4;
+  --color-text-tertiary:  #5c6b7a;
+  --color-text-disabled:  #3d4e5e;
+
+  /* System semantic colors */
+  --color-cyan:       #00d4e8;
+  --color-cyan-dim:   #00abbe;
+  --color-violet:     #8b5cf6;
+  --color-violet-dim: #6d3fd6;
+  --color-green:      #10b981;
+  --color-green-dim:  #0a8a5f;
+  --color-amber:      #f59e0b;
+  --color-amber-dim:  #c97d08;
+  --color-red:        #ef4444;
+  --color-red-dim:    #c13030;
+
+  /* Typography */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'Space Mono', 'Courier New', monospace;
+
+  /* Spacing scale */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  /* Motion */
+  --duration-micro:    180ms;
+  --duration-normal:   450ms;
+  --duration-system:   1000ms;
+  --duration-cinematic:1800ms;
+  --ease-out:          cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:           cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout:        cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-snap:         cubic-bezier(0.0, 0.0, 0.2, 1);
+
+  /* Border radius */
+  --radius-sm:  3px;
+  --radius-md:  6px;
+  --radius-lg:  12px;
+  --radius-full: 9999px;
+
+  /* Z-index scale */
+  --z-base:     0;
+  --z-content:  10;
+  --z-overlay:  100;
+  --z-nav:      200;
+  --z-systemmap:300;
+  --z-cursor:   400;
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-deep);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  cursor: none; /* custom cursor will handle */
+}
+
+/* Fallback cursor when custom cursor is disabled */
+@media (pointer: coarse) {
+  body { cursor: auto; }
+}
+
+img, svg, video, canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+/* ── Selection ─────────────────────────────────────────────── */
+::selection {
+  background: rgba(0, 212, 232, 0.2);
+  color: var(--color-text-primary);
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-black);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cyan-dim);
+}
+
+/* ── Focus ─────────────────────────────────────────────────── */
+/* Spec §37: visible focus states required */
+:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Reduced motion ────────────────────────────────────────── */
+/* Spec §37: prefers-reduced-motion must disable complex animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── App container ─────────────────────────────────────────── */
+#root {
+  isolation: isolate;
+  position: relative;
+}
