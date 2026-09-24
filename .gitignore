@@ -15,12 +15,40 @@ dist-ssr
 # Environment / secrets
 .env
 .env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+id_rsa*
+id_ed25519*
+.npmrc
+.netrc
+.credentials.json
+serviceAccount*.json
+*secret*.json
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporary / generated
+*.tmp
+*.temp
+*.swp
+*.bak
+*.orig
+.DS_Store
+Thumbs.db
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
