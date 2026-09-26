@@ -8015,3 +8015,473 @@ h1, h2, h3 { text-wrap: balance; }
 
 .final-legal a:hover { color: var(--lime); }
 
+/* ============================================================================
+   MANUAL — THE LIVING SYSTEM (convergence rebuild)
+   Twelve signals: six channels on the outer ring, six records on the inner
+   ring, one core at the centre. Every wire is a quadratic that passes through
+   the core, so the composition shows many inputs → one system → an organised
+   result. Presentation only: positions, phases, tones and counters all come
+   from the component.
+
+   These rules use the `.living-*` namespace and supersede the older `.scatter`
+   board for this chapter. The older board rules remain above but are no longer
+   referenced by Manual.tsx.
+   ============================================================================ */
+
+.living {
+  position: relative;
+  margin: clamp(1.6rem, 3vw, 2.4rem) 0 0;
+}
+
+/* ── PANEL HEAD: the state of the whole system, in one line ───────────────── */
+
+.living-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem 1.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.living-head-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: var(--t-meta);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.living-head-state.ok { color: var(--lime); }
+.living-head-state.busy { color: var(--amber); }
+.living-head-state.err { color: var(--dim); }
+
+.living-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 14%, transparent);
+}
+.living-head-state.busy .living-dot { animation: living-dot 1s var(--ease) infinite; }
+@keyframes living-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ── STAGE: a bounded plane the ring is drawn on ──────────────────────────── */
+
+.living-stage {
+  position: relative;
+  min-height: clamp(24rem, 52vw, 34rem);
+  border: 1px solid var(--border-strong);
+  background:
+    radial-gradient(120% 90% at 50% 46%, rgba(179, 240, 0, 0.05), transparent 58%),
+    linear-gradient(180deg, rgba(16, 20, 22, 0.9), rgba(9, 12, 13, 0.96));
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* a quiet measurement grid + one very slow drift, drawn behind everything */
+.living-grid {
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(230, 231, 227, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(230, 231, 227, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 100% at 50% 50%, #000 45%, transparent 92%);
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 50%, #000 45%, transparent 92%);
+  animation: living-grid-drift 26s linear infinite;
+}
+@keyframes living-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 44px 44px, 44px 44px; }
+}
+
+.living-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(38% 38% at 50% 50%, rgba(179, 240, 0, 0.08), transparent 70%);
+  animation: living-glow 6.5s var(--ease-in-out) infinite;
+}
+@keyframes living-glow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+/* ── WIRES: thin, low, and every one of them passes through the core ──────── */
+
+.living-wires {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.living-ring {
+  fill: none;
+  stroke: rgba(230, 231, 227, 0.08);
+  stroke-width: 1;
+}
+.living-ring.outer { stroke-dasharray: 2 7; }
+.living-ring.inner { stroke: rgba(230, 231, 227, 0.12); }
+
+.lw-path {
+  fill: none;
+  stroke: rgba(230, 231, 227, 0.13);
+  stroke-width: 1;
+  transition: stroke var(--m-base) var(--ease), stroke-width var(--m-base) var(--ease);
+}
+.living-wire.err .lw-path { stroke: rgba(255, 92, 77, 0.34); }
+.living-wire.warn .lw-path { stroke: rgba(255, 178, 36, 0.32); }
+.living-wire.broken .lw-path { stroke-dasharray: 4 5; }
+
+.living-wire.hot .lw-path { stroke: var(--lime); stroke-width: 1.5; }
+.living-stage.processing .lw-path { stroke-opacity: 0.9; }
+
+.lw-bloom {
+  fill: none;
+  stroke: var(--lime);
+  stroke-width: 1.4;
+  stroke-dasharray: 5 95;
+  opacity: 0.9;
+  animation: living-bloom var(--dur, 2.4s) linear infinite;
+  animation-delay: var(--begin, 0s);
+}
+@keyframes living-bloom {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: -100; }
+}
+
+.lw-pulse { fill: var(--lime); filter: drop-shadow(0 0 4px rgba(179, 240, 0, 0.7)); }
+
+/* ── CORE: one system, every signal converges here ────────────────────────── */
+
+.living-core {
+  position: absolute;
+  z-index: 2;
+  width: clamp(6rem, 17vw, 9.5rem);
+  height: clamp(6rem, 17vw, 9.5rem);
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.core-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(179, 240, 0, 0.34);
+  animation: core-spin 18s linear infinite;
+}
+.core-orbit.reverse {
+  inset: 12%;
+  border-style: solid;
+  border-color: rgba(179, 240, 0, 0.16);
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+.living-stage.processing .core-orbit { animation-duration: 6s; }
+.living-stage.settled .core-orbit { border-color: rgba(179, 240, 0, 0.6); }
+@keyframes core-spin {
+  to { transform: rotate(360deg); }
+}
+
+.core-disc {
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  background:
+    radial-gradient(60% 60% at 50% 36%, rgba(179, 240, 0, 0.34), rgba(179, 240, 0, 0.05) 62%, transparent 74%),
+    linear-gradient(180deg, rgba(20, 26, 28, 0.96), rgba(10, 13, 14, 0.98));
+  box-shadow: 0 0 26px rgba(179, 240, 0, 0.14), inset 0 0 18px rgba(179, 240, 0, 0.08);
+  display: grid;
+  place-items: center;
+}
+
+/* the expanding ring re-mounts on each handled record, so the core answers */
+.core-tick {
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  border: 1px solid var(--lime);
+  animation: core-pulse 0.72s var(--ease-out) forwards;
+}
+@keyframes core-pulse {
+  from { opacity: 0.8; transform: scale(0.7); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
+.core-readout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.08rem;
+  font-variant-numeric: tabular-nums;
+}
+.core-readout strong {
+  font-size: clamp(1.35rem, 3.4vw, 1.9rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--paper);
+  letter-spacing: -0.02em;
+}
+.core-readout em {
+  font-style: normal;
+  font-size: 0.52rem;
+  letter-spacing: 0.22em;
+  color: var(--lime);
+}
+.living-stage.settled .core-readout strong { color: var(--lime); }
+
+/* ── SIGNALS: technical nodes, not cards ──────────────────────────────────── */
+
+.living-node {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ln-body {
+  display: grid;
+  gap: 0.24rem;
+  width: clamp(5.9rem, 13vw, 8.4rem);
+  padding: 0.46rem 0.6rem 0.5rem;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border);
+  background: rgba(10, 13, 14, 0.86);
+  backdrop-filter: blur(2px);
+  transition: border-color var(--m-base) var(--ease), background var(--m-base) var(--ease),
+    box-shadow var(--m-base) var(--ease), transform var(--m-base) var(--ease), opacity var(--m-base) var(--ease);
+}
+.living-node.record .ln-body { width: clamp(5.2rem, 11.5vw, 7.4rem); }
+
+.living-node.in .ln-body,
+.living-stage.in .living-node .ln-body {
+  animation: living-node-in 0.6s var(--ease-out) both;
+  animation-delay: var(--enter-delay, 0ms);
+}
+@keyframes living-node-in {
+  from { opacity: 0; transform: translateY(7px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+.ln-top {
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
+  line-height: 1;
+}
+.ln-mark { font-size: 0.58rem; color: var(--dim); }
+.ln-glyph { width: 0.92rem; height: 0.92rem; color: var(--faint); flex: none; }
+.ln-idx {
+  margin-left: auto;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+}
+.ln-type {
+  font-size: 0.6rem;
+  letter-spacing: 0.13em;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ln-stat {
+  font-size: 0.52rem;
+  letter-spacing: 0.09em;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* tone: the leading edge is the node's state in one colour */
+.living-node.err .ln-body { border-left-color: var(--red); }
+.living-node.err .ln-mark { color: var(--red); }
+.living-node.warn .ln-body { border-left-color: var(--amber); }
+.living-node.warn .ln-mark { color: var(--amber); }
+.living-node.ok .ln-body { border-left-color: var(--lime); }
+.living-node.ok .ln-mark { color: var(--lime); }
+
+/* hover: the node lifts a hair and answers with its frame */
+.living-node:hover .ln-body,
+.living-node:focus-visible .ln-body {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  background: rgba(16, 20, 22, 0.95);
+}
+.living-node:focus-visible { outline: none; }
+
+/* a selection is a frame: the picked node is framed, its neighbours lit,
+   everything else recedes */
+.living-node.selected .ln-body {
+  border-color: var(--lime);
+  box-shadow: 0 0 0 1px var(--lime-faint), 0 0 22px rgba(179, 240, 0, 0.16);
+}
+.living-node.linked .ln-body { border-color: var(--border-strong); }
+.living-node.dim .ln-body { opacity: 0.34; }
+
+/* the run being on a signal right now */
+.living-node.active .ln-body {
+  border-color: var(--lime-dim);
+  background: rgba(180, 240, 0, 0.05);
+  box-shadow: 0 0 0 1px var(--lime-faint), 0 0 20px rgba(179, 240, 0, 0.14);
+}
+
+/* a record the run has just handled settles rather than blinking */
+.living-node.settling .ln-body { animation: living-settle 0.5s var(--ease-out) both; }
+@keyframes living-settle {
+  0% { box-shadow: 0 0 0 2px rgba(179, 240, 0, 0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(179, 240, 0, 0); }
+}
+
+/* and a duplicate the run has just found is called out, twice, briefly */
+.living-node.flash .ln-body { animation: living-flash 0.5s var(--ease-out) 2; }
+@keyframes living-flash {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--red); box-shadow: 0 0 16px rgba(255, 92, 77, 0.22); }
+}
+
+/* ── PANEL FOOT: the tally on the left, the reading on the right ──────────── */
+
+.living-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem 1.6rem;
+  margin-top: 0.9rem;
+}
+
+.living-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.1rem;
+  margin: 0;
+}
+
+.living-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+  border: 0;
+  background: none;
+  font-size: var(--t-meta);
+  letter-spacing: 0.16em;
+  color: var(--faint);
+  transition: color var(--m-quick) var(--ease);
+}
+.living-lg .lgl-n { font-weight: 600; color: var(--paper); }
+.living-lg.err .lgl-n { color: var(--red); }
+.living-lg.warn .lgl-n { color: var(--amber); }
+.living-lg.ok .lgl-n { color: var(--lime); }
+.living-lg:hover { color: var(--paper); }
+.living-lg.picked { color: var(--paper); }
+.living-lg.picked .lgl-n { text-decoration: underline; text-underline-offset: 3px; }
+
+.living-note {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--t-label);
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  text-align: right;
+  text-transform: uppercase;
+}
+
+/* ── ENTRY: the ring resolves layer by layer ──────────────────────────────── */
+
+.living-stage.in .living-grid { animation-play-state: running; }
+
+/* ── REDUCED MOTION: the whole system holds still, fully legible ──────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .living-grid,
+  .living-glow,
+  .core-orbit,
+  .core-tick,
+  .lw-bloom,
+  .living-dot,
+  .living-node .ln-body,
+  .living-stage.in .living-node .ln-body,
+  .living-node.settling .ln-body,
+  .living-node.flash .ln-body {
+    animation: none !important;
+  }
+  .lw-pulse { display: none; }
+}
+
+/* ── RESPONSIVE: full ring, then a tightened ring ─────────────────────────── */
+
+@media (max-width: 900px) {
+  .living-stage { min-height: clamp(23rem, 74vw, 32rem); }
+  .living-note { text-align: left; }
+}
+
+@media (max-width: 640px) {
+  .living-stage { min-height: clamp(22rem, 96vw, 30rem); }
+  .ln-body { padding: 0.4rem 0.48rem 0.44rem; gap: 0.18rem; }
+  .living-node.record .ln-body { width: clamp(4.8rem, 30vw, 6.4rem); }
+  .living-node.source .ln-body { width: clamp(5.2rem, 34vw, 7rem); }
+  .ln-glyph { width: 0.8rem; height: 0.8rem; }
+  .ln-idx { display: none; }
+  .ln-type { font-size: 0.55rem; letter-spacing: 0.1em; }
+  .ln-stat { font-size: 0.48rem; letter-spacing: 0.06em; }
+  .living-core { width: clamp(5rem, 30vw, 6.6rem); height: clamp(5rem, 30vw, 6.6rem); }
+  .living-foot { gap: 0.6rem; }
+  .living-note { font-size: var(--t-meta); }
+}
+
+@media (max-width: 420px) {
+  .living-node.source .ln-body { width: clamp(4.6rem, 40vw, 6rem); }
+  .living-node.record .ln-body { width: clamp(4.4rem, 36vw, 5.6rem); }
+  .living-legend { gap: 0.8rem; }
+}
+
+/* ── COLUMN MODE: phones recompose to two columns flanking the core ───────── */
+
+.living-axis {
+  stroke: rgba(230, 231, 227, 0.06);
+  stroke-width: 1;
+  stroke-dasharray: 3 9;
+}
+
+.living-stage.columns .living-grid { background-size: 34px 34px; }
+.living-stage.columns .living-node.source .ln-body,
+.living-stage.columns .living-node.record .ln-body {
+  width: clamp(4.2rem, 30vw, 6.6rem);
+}
+.living-stage.columns .living-core {
+  width: clamp(4rem, 21vw, 5.4rem);
+  height: clamp(4rem, 21vw, 5.4rem);
+}
+.living-stage.columns .living-glow { background: radial-gradient(30% 30% at 50% 50%, rgba(179, 240, 0, 0.09), transparent 70%); }
+
+@media (forced-colors: active) {
+  .living-node .ln-body { background: Canvas; }
+  .living-wire .lw-path { stroke: CanvasText; }
+  .core-disc { background: Canvas; }
+}
+

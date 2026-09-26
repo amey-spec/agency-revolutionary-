@@ -1,50 +1,47 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useElementRect, useReducedMotion } from '../lib/geometry';
-import type { Pt } from '../lib/geometry';
 import { useExperience } from '../lib/ExperienceController';
 import type { TopicId } from '../lib/typed';
 
 /**
- * MANUAL — the chapter that shows what work looks like without a system.
+ * MANUAL — "the living system".
  *
- * The composition is a schematic, not a collage: six channels feed a lower row
- * of six records, and every wire between them carries a state. Three things
- * keep it honest:
+ * Twelve disconnected signals surround one core. Six channels sit on the outer
+ * ring, six records on the inner ring, and every wire between them passes
+ * through the core: many inputs → one system → an organised result.
  *
- *  1. NOTHING IS ASSERTED THAT ISN'T COUNTED. A card's tone comes from its
- *     status, the counters are a tally of those tones, and confidence is derived
- *     from the tally. When the automation resolves a record, the counters and
- *     the confidence readout move because the data moved — not because a label
- *     was swapped.
+ * Three things keep it honest:
  *
- *  2. THE WIRES ARE MEASURED. Routes are traced from the real boxes of the
- *     cards on the stage, so the diagram cannot drift away from what it
- *     describes, at any breakpoint.
+ *  1. NOTHING IS ASSERTED THAT ISN'T COUNTED. A node's tone comes from its
+ *     status, the counters tally those tones, and confidence is derived from the
+ *     tally. When the automation converges a record, the counters move because
+ *     the data moved — not because a label was swapped.
  *
- *  3. THE RUN IS A SEQUENCE, NOT A SPINNER. Reading (channels, in order) →
- *     wiring → flagging → resolving (records, in order). Each phase lights the
- *     cards it is about, so the visitor can watch which item is being handled.
+ *  2. THE WIRES ARE MEASURED. Positions are computed from the stage's real size,
+ *     so the ring cannot drift away from what it describes at any breakpoint.
+ *
+ *  3. THE RUN IS A SEQUENCE, NOT A SPINNER. Reading (outer ring, in order) →
+ *     linking → flagging → converging (inner ring, in order). Each phase lights
+ *     the nodes it is about, so the visitor can watch which signal is moving.
  */
 
-/* ── THE BOARD ─────────────────────────────────────────────────────────────── */
+/* ── THE SIGNALS ───────────────────────────────────────────────────────────── */
 
 type Tone = 'err' | 'warn' | 'ok';
 
-interface CardSpec {
-  /** key inside its row */
+interface NodeSpec {
   id: string;
   label: string;
   status: string;
-  /** the line under the card: what it actually is */
   detail: string;
   /** the status once the automation has handled it */
   resolved: string;
   tone: Tone;
 }
 
-/** five live channels and one spreadsheet everyone keeps separately */
-const SOURCES: (CardSpec & { channel: boolean })[] = [
+/** six live channels on the outer ring */
+const SOURCES: (NodeSpec & { channel: boolean })[] = [
   { id: 'email', label: 'EMAIL', status: 'REPLY AVERAGE', detail: '9 hrs in the queue', resolved: 'ANSWERED', tone: 'warn', channel: true },
   { id: 'form', label: 'FORM', status: 'UNREAD 3 DAYS', detail: 'contact form #2291', resolved: 'READ + ROUTED', tone: 'warn', channel: true },
   { id: 'crm', label: 'CRM', status: 'UNASSIGNED', detail: 'LEAD-88 // no owner', resolved: 'OWNER SET', tone: 'warn', channel: true },
@@ -53,7 +50,8 @@ const SOURCES: (CardSpec & { channel: boolean })[] = [
   { id: 'calendar', label: 'CALENDAR', status: 'DOUBLE-BOOKED', detail: '11:00 — two bookings', resolved: 'CONFLICT CLEARED', tone: 'warn', channel: true },
 ];
 
-const RECORDS: CardSpec[] = [
+/** six records on the inner ring — what the channels produced */
+const RECORDS: NodeSpec[] = [
   { id: 'email', label: 'EMAIL', status: 'DUPLICATE', detail: 'same thread, two owners', resolved: 'RESOLVED', tone: 'err' },
   { id: 'db', label: 'DATABASE', status: 'NO OWNER', detail: 'customer // unlinked', resolved: 'ASSIGNED', tone: 'warn' },
   { id: 'report', label: 'REPORT', status: 'NEVER SENT', detail: 'WEEKLY-REPORT-draft2', resolved: 'SENT', tone: 'warn' },
@@ -62,7 +60,7 @@ const RECORDS: CardSpec[] = [
   { id: 'crm', label: 'CRM', status: 'DUPLICATE', detail: 'LEAD-88 // NEW ×2', resolved: 'RESOLVED', tone: 'err' },
 ];
 
-/** every wire the manual world has: same record twice, plus who is waiting on whom */
+/** every wire in the manual world: same record twice, plus who waits on whom */
 const LINKS: { id: string; from: string; to: string; weak?: boolean }[] = [
   { id: 'l1', from: 'email', to: 'email' },
   { id: 'l2', from: 'form', to: 'form' },
@@ -91,16 +89,16 @@ const CONTEXT: Record<TopicId, [string, string]> = {
 const MARK: Record<Tone, string> = { err: '✕', warn: '△', ok: '✓' };
 
 const PHASE_COPY: Record<string, string> = {
-  analyzing: 'scanning 12 items across 5 channels…',
+  analyzing: 'scanning 12 signals across 5 channels…',
   reading: 'reading sources — no field understood yet',
-  linking: 'wiring 9 links between 5 channels…',
+  linking: 'wiring 9 links through the core…',
   flagging: '3 duplicates found — the same record in two places',
-  resolving: 'resolving in place, one record at a time',
-  done: '12 items, one system — 0 handoffs, 0 duplicates',
+  resolving: 'converging into place, one record at a time',
+  done: '12 signals, one system — 0 handoffs, 0 duplicates',
 };
 
 /* ── GLYPHS ──────────────────────────────────────────────────────────────────
-   One mark per card, drawn on a 16-unit grid so every icon carries the same
+   One mark per node, drawn on a 16-unit grid so every icon carries the same
    weight at the same size. Unknown labels fall back to the system mark. */
 
 const GLYPHS: Record<string, ReactNode> = {
@@ -182,80 +180,6 @@ function CardGlyph({ label }: { label: string }) {
   );
 }
 
-/* ── ROUTES ──────────────────────────────────────────────────────────────────
-   The wire is half of the argument: every record is reachable, and none of it
-   was ever designed. Routes are rounded orthogonal traces — engineered, not
-   drawn freehand. */
-
-interface FieldLink {
-  id: string;
-  key: string;
-  d: string;
-  tone: Tone;
-  weak: boolean;
-  a: Pt;
-  b: Pt;
-}
-
-interface Box {
-  l: number;
-  t: number;
-  r: number;
-  b: number;
-  cx: number;
-  cy: number;
-}
-
-/** Rounded polyline: routes read as engineered traces rather than scribbles. */
-function trace(points: Pt[], radius = 8): string {
-  if (points.length < 2) return '';
-  const dir = (a: Pt, b: Pt) => {
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy) || 1;
-    return { x: dx / len, y: dy / len, len };
-  };
-  const round = (n: number) => n.toFixed(1);
-  let d = `M ${round(points[0].x)} ${round(points[0].y)}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1];
-    const p = points[i];
-    const next = points[i + 1];
-    const into = dir(prev, p);
-    const out = dir(p, next);
-    const r = Math.min(radius, into.len / 2, out.len / 2);
-    d += ` L ${round(p.x - into.x * r)} ${round(p.y - into.y * r)}`;
-    d += ` Q ${round(p.x)} ${round(p.y)} ${round(p.x + out.x * r)} ${round(p.y + out.y * r)}`;
-  }
-  const last = points[points.length - 1];
-  return `${d} L ${round(last.x)} ${round(last.y)}`;
-}
-
-/** The shortest orthogonal route between two cards, with a gap at each end. */
-function route(from: Box, to: Box): Pt[] {
-  const gap = 7;
-  const dx = to.cx - from.cx;
-  const dy = to.cy - from.cy;
-  if (Math.abs(dy) > Math.abs(dx) * 0.6) {
-    const down = dy > 0;
-    const midY = (from.cy + to.cy) / 2;
-    return [
-      { x: from.cx, y: down ? from.b + gap : from.t - gap },
-      { x: from.cx, y: midY },
-      { x: to.cx, y: midY },
-      { x: to.cx, y: down ? to.t - gap : to.b + gap },
-    ];
-  }
-  const right = dx > 0;
-  const midX = (from.cx + to.cx) / 2;
-  return [
-    { x: right ? from.r + gap : from.l - gap, y: from.cy },
-    { x: midX, y: from.cy },
-    { x: midX, y: to.cy },
-    { x: right ? to.l - gap : to.r + gap, y: to.cy },
-  ];
-}
-
 /* ── STATE ─────────────────────────────────────────────────────────────────── */
 
 type Phase = 'manual' | 'analyzing' | 'reading' | 'linking' | 'flagging' | 'resolving' | 'done';
@@ -270,6 +194,38 @@ interface Selection {
 
 const keyOf = (row: 'source' | 'record', id: string) => `${row}:${id}`;
 
+/** one positioned signal in the ring */
+interface Placed<T> {
+  spec: T;
+  x: number;
+  y: number;
+}
+
+/** the whole stage geometry, in the stage's own pixel space */
+interface Layout {
+  /** ring on wide viewports; two columns flanking the core on phones */
+  mode: 'ring' | 'columns';
+  w: number;
+  h: number;
+  cx: number;
+  cy: number;
+  outerRx: number;
+  outerRy: number;
+  innerRx: number;
+  innerRy: number;
+  sources: Placed<(typeof SOURCES)[number]>[];
+  records: Placed<(typeof RECORDS)[number]>[];
+}
+
+/** place n items on an ellipse, starting at the top and going clockwise */
+function ring<T>(items: T[], cx: number, cy: number, rx: number, ry: number, offset: number): Placed<T>[] {
+  const step = (Math.PI * 2) / Math.max(items.length, 1);
+  return items.map((spec, i) => {
+    const a = -Math.PI / 2 + offset + i * step;
+    return { spec, x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry };
+  });
+}
+
 export function Manual() {
   const { state, setState, pushEcho, pulse, topic } = useExperience();
   const reduced = useReducedMotion();
@@ -283,24 +239,19 @@ export function Manual() {
   const [noteClosing, setNoteClosing] = useState(false);
   /** the note exists only while the confidence stat is the picked one */
   const noteOpen = highlight?.kind === 'confidence';
-  /** how many sources the run has read, and how many records it has handled */
+  /** how many outer signals the run has read, and how many records it has handled */
   const [read, setRead] = useState(0);
   const [handled, setHandled] = useState(0);
   const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined');
   /** true while this chapter is the one on screen: it owns the HUD's readout */
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === 'undefined');
-  const [metrics, setMetrics] = useState({ w: 0, h: 0, boxes: {} as Record<string, Box> });
 
   const sectionRef = useRef<HTMLElement>(null);
-  const planeRef = useRef<HTMLDivElement>(null);
-  const focusRef = useRef<HTMLSpanElement>(null);
-  const cardRefs = useRef(new Map<string, HTMLElement | null>());
   const timers = useRef<number[]>([]);
   const [stageRef, stageRect] = useElementRect<HTMLDivElement>();
 
   const running = phase !== 'manual' && phase !== 'done';
   const settled = phase === 'done';
-  /** how many records the run has settled: the board is a function of this */
   const handledCount = handled;
 
   const clearTimers = useCallback(() => {
@@ -325,8 +276,6 @@ export function Manual() {
           if (entry.isIntersecting) setSeen(true);
         });
       },
-      // "on screen" means the chapter holds the middle band of the viewport, not
-      // that a corner of it peeks in below the intro
       { rootMargin: '-38% 0px -38% 0px' },
     );
     io.observe(el);
@@ -342,8 +291,7 @@ export function Manual() {
 
   // THE READOUT: while the visitor is reading this chapter, the HUD says what
   // the chapter is about. It re-asserts rather than claiming once, because the
-  // chapters below narrate their own state from mount — without this, the ACT
-  // chapter's off-screen demo lands a "RESULT" over the manual world.
+  // chapters below narrate their own state from mount.
   useEffect(() => {
     if (!onScreen || running || settled) return;
     if (state !== 'decision') setState('decision');
@@ -394,6 +342,88 @@ export function Manual() {
   const confidence: { label: string; tone: Tone } =
     tones.err > 0 ? { label: 'Low', tone: 'warn' } : tones.warn > 0 ? { label: 'Medium', tone: 'warn' } : { label: 'High', tone: 'ok' };
 
+  /* ── geometry: the ring is measured from the stage's real size ──────────── */
+
+  const layout = useMemo<Layout | null>(() => {
+    const w = stageRect.width;
+    const h = stageRect.height;
+    if (!w || !h) return null;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    // narrow viewports RECOMPOSE rather than shrink: sources stack down the left
+    // and records down the right, so twelve signals stay legible and tappable
+    // without crowding the core
+    if (w < 640) {
+      const leftX = w * 0.18;
+      const rightX = w * 0.82;
+      const topPad = Math.min(34, h * 0.07);
+      const usable = h - topPad * 2;
+      const place = <T,>(items: T[], x: number): Placed<T>[] =>
+        items.map((spec, i) => ({ spec, x, y: topPad + (usable * (i + 0.5)) / items.length }));
+      return {
+        mode: 'columns',
+        w,
+        h,
+        cx,
+        cy,
+        outerRx: 0,
+        outerRy: 0,
+        innerRx: 0,
+        innerRy: 0,
+        sources: place(SOURCES, leftX),
+        records: place(RECORDS, rightX),
+      };
+    }
+
+    // desktop / tablet: two concentric rings, six signals each, kept clear of
+    // the stage's own edges at every width
+    const padX = Math.min(104, w * 0.16);
+    const padY = Math.min(76, h * 0.13);
+    const outerRx = Math.max(44, cx - padX);
+    const outerRy = Math.max(44, cy - padY);
+    const innerRx = outerRx * 0.56;
+    const innerRy = outerRy * 0.62;
+    return {
+      mode: 'ring',
+      w,
+      h,
+      cx,
+      cy,
+      outerRx,
+      outerRy,
+      innerRx,
+      innerRy,
+      sources: ring(SOURCES, cx, cy, outerRx, outerRy, 0),
+      records: ring(RECORDS, cx, cy, innerRx, innerRy, Math.PI / SOURCES.length),
+    };
+  }, [stageRect.width, stageRect.height]);
+
+  /* ── the wires: every source → record passes through the core ───────────── */
+
+  const wires = useMemo(() => {
+    if (!layout) return [];
+    return LINKS.flatMap((l) => {
+      const from = layout.sources.find((s) => s.spec.id === l.from);
+      const to = layout.records.find((r) => r.spec.id === l.to);
+      if (!from || !to) return [];
+      const a = cards.sources.find((s) => s.id === l.from);
+      const b = cards.records.find((r) => r.id === l.to);
+      const tone: Tone = a?.tone === 'err' || b?.tone === 'err' ? 'err' : a?.tone === 'warn' || b?.tone === 'warn' ? 'warn' : 'ok';
+      // a quadratic whose control point is the core centre: the wire visibly
+      // converges before it reaches its record
+      return [
+        {
+          id: l.id,
+          key: `${l.id}:${tone}`,
+          d: `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${layout.cx.toFixed(1)} ${layout.cy.toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`,
+          tone,
+          weak: !!l.weak,
+        },
+      ];
+    });
+  }, [layout, cards]);
+
   /* ── what is currently emphasised ───────────────────────────────────────── */
 
   const neighbours = useMemo(() => {
@@ -415,8 +445,6 @@ export function Manual() {
     // five live channels — the spreadsheet is the sixth source, not a channel
     if (highlight?.kind === 'sources') return new Set(cards.sources.filter((s) => s.channel).map((s) => s.key));
     if (highlight?.kind === 'duplicates') {
-      // the group is fixed by what the records were, so the reading keeps
-      // pointing at the same three cards after the run has settled them
       return new Set(RECORDS.filter((r) => r.tone === 'err').map((r) => keyOf('record', r.id)));
     }
     if (highlight?.kind === 'tone' && highlight.tone) {
@@ -441,123 +469,19 @@ export function Manual() {
     return new Set<string>();
   }, [selected, highlight, focusKeys, running]);
 
-  /* ── measuring: every wire is traced from the cards' real boxes ──────────── */
-
-  const layoutKey = cards.all.map((c) => `${c.key}:${c.tone}`).join('|');
-  useLayoutEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const base = stage.getBoundingClientRect();
-    const boxes: Record<string, Box> = {};
-    cardRefs.current.forEach((el, key) => {
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      boxes[key] = {
-        l: r.left - base.left,
-        t: r.top - base.top,
-        r: r.right - base.left,
-        b: r.bottom - base.top,
-        cx: r.left - base.left + r.width / 2,
-        cy: r.top - base.top + r.height / 2,
-      };
-    });
-    setMetrics((prev) => {
-      if (prev.w === stageRect.width && prev.h === stageRect.height) {
-        const a = Object.keys(prev.boxes);
-        const b = Object.keys(boxes);
-        if (
-          a.length === b.length &&
-          b.every((k) => prev.boxes[k] && Math.abs(prev.boxes[k].l - boxes[k].l) < 0.5 && Math.abs(prev.boxes[k].t - boxes[k].t) < 0.5 && Math.abs(prev.boxes[k].r - boxes[k].r) < 0.5 && Math.abs(prev.boxes[k].b - boxes[k].b) < 0.5)
-        ) {
-          return prev;
-        }
-      }
-      return { w: stageRect.width, h: stageRect.height, boxes };
-    });
-  }, [stageRef, stageRect.width, stageRect.height, layoutKey, handledCount]);
-
-  const wires = useMemo<FieldLink[]>(() => {
-    if (!metrics.w || !metrics.h) return [];
-    return LINKS.flatMap((l) => {
-      const from = metrics.boxes[keyOf('source', l.from)];
-      const to = metrics.boxes[keyOf('record', l.to)];
-      if (!from || !to) return [];
-      const points = route(from, to);
-      const a = cards.sources.find((s) => s.id === l.from);
-      const b = cards.records.find((r) => r.id === l.to);
-      const tone: Tone = a?.tone === 'err' || b?.tone === 'err' ? 'err' : a?.tone === 'warn' || b?.tone === 'warn' ? 'warn' : 'ok';
-      return [
-        {
-          id: l.id,
-          key: `${l.id}:${tone}`,
-          d: trace(points),
-          tone,
-          weak: !!l.weak,
-          a: points[0],
-          b: points[points.length - 1],
-        },
-      ];
-    });
-  }, [metrics, cards]);
-
-  /* ── pointer as instrumentation ──────────────────────────────────────────── */
-
-  useEffect(() => {
-    if (reduced) return;
-    const section = sectionRef.current;
-    if (!section) return;
-    let raf = 0;
-    let last = { x: 0, y: 0 };
-    const apply = () => {
-      raf = 0;
-      const stageEl = stageRef.current;
-      const rect = section.getBoundingClientRect();
-      const nx = (last.x - rect.left) / Math.max(rect.width, 1) - 0.5;
-      const ny = (last.y - rect.top) / Math.max(rect.height, 1) - 0.5;
-      if (planeRef.current) {
-        planeRef.current.style.transform = `translate3d(${(-nx * 7).toFixed(1)}px, ${(-ny * 5).toFixed(1)}px, 0)`;
-      }
-      if (focusRef.current) {
-        if (!stageEl) {
-          focusRef.current.style.transform = 'translate3d(-60rem, -60rem, 0)';
-          return;
-        }
-        const sr = stageEl.getBoundingClientRect();
-        const inside = last.x >= sr.left && last.x <= sr.right && last.y >= sr.top && last.y <= sr.bottom;
-        focusRef.current.style.transform = inside
-          ? `translate3d(${(last.x - sr.left).toFixed(0)}px, ${(last.y - sr.top).toFixed(0)}px, 0)`
-          : 'translate3d(-60rem, -60rem, 0)';
-      }
-    };
-    const onMove = (e: PointerEvent) => {
-      last = { x: e.clientX, y: e.clientY };
-      if (!raf) raf = requestAnimationFrame(apply);
-    };
-    const onLeave = () => {
-      if (planeRef.current) planeRef.current.style.transform = 'translate3d(0, 0, 0)';
-      if (focusRef.current) focusRef.current.style.transform = 'translate3d(-60rem, -60rem, 0)';
-    };
-    section.addEventListener('pointermove', onMove, { passive: true });
-    section.addEventListener('pointerleave', onLeave);
-    return () => {
-      section.removeEventListener('pointermove', onMove);
-      section.removeEventListener('pointerleave', onLeave);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [reduced, stageRef]);
-
   /* ── selection ──────────────────────────────────────────────────────────── */
 
-  const pick = useCallback((row: 'source' | 'record', id: string) => {
-    pulse();
-    setSelected((prev) => (prev && prev.row === row && prev.id === id ? null : { row, id }));
-  }, [pulse]);
+  const pick = useCallback(
+    (row: 'source' | 'record', id: string) => {
+      pulse();
+      setSelected((prev) => (prev && prev.row === row && prev.id === id ? null : { row, id }));
+    },
+    [pulse],
+  );
 
   const pickHighlight = useCallback(
     (next: Highlight) => {
       pulse();
-      // any pick that takes the note down folds it away instead of deleting it
-      // between two frames
       setNoteClosing(noteOpen);
       setHighlight((prev) => (prev && prev.kind === next?.kind && prev.tone === next?.tone ? null : next));
       setSelected(null);
@@ -565,7 +489,6 @@ export function Manual() {
     [pulse, noteOpen],
   );
 
-  /** drop whatever is open — the selected card, the picked stat, and the note */
   const clear = useCallback(() => {
     setNoteClosing(noteOpen);
     setSelected(null);
@@ -588,11 +511,11 @@ export function Manual() {
   const automate = useCallback(() => {
     if (phase !== 'manual' && phase !== 'done') return;
     clearTimers();
-    clear(); // the run takes over the readings the visitor had picked
+    clear();
     setRead(0);
     setHandled(0);
     pulse();
-    pushEcho('Manual system: automating 12 items.');
+    pushEcho('Manual system: converging 12 signals.');
     setState('executing');
 
     if (reduced) {
@@ -608,16 +531,16 @@ export function Manual() {
     setPhase('analyzing');
     at(700, () => setPhase('reading'));
 
-    // PHASE 2 — the channels are read in order, left to right
+    // PHASE 2 — the channels are read in order, around the ring
     const READ_STEP = 200;
     SOURCES.forEach((_, i) => at(700 + i * READ_STEP, () => setRead(i + 1)));
 
-    // PHASE 3 — the wires carry data
+    // PHASE 3 — the wires carry data through the core
     const afterReads = 700 + SOURCES.length * READ_STEP;
     at(afterReads, () => setPhase('linking'));
     // PHASE 4 — the duplicates are identified
     at(afterReads + 900, () => setPhase('flagging'));
-    // PHASE 5 — records are handled in order
+    // PHASE 5 — records converge in order
     const RESOLVE_STEP = 430;
     const afterFlag = afterReads + 1600;
     at(afterFlag, () => {
@@ -632,10 +555,24 @@ export function Manual() {
       setState('complete');
       pushEcho('Manual system resolved: 0 errors, 0 warnings.');
     });
-    // `clear` is a dependency on purpose: it is the one place that knows whether
-    // the note is open, and a stale copy of it would drop the note instead of
-    // folding it away
   }, [clear, clearTimers, phase, pulse, pushEcho, reduced, setState]);
+
+  /** the replay: a clean reset, then the whole convergence again */
+  const replay = useCallback(() => {
+    clearTimers();
+    setPhase('manual');
+    setRead(0);
+    setHandled(0);
+    setSelected(null);
+    setHighlight(null);
+    setState('decision');
+    // let the reset paint one frame, then run — so replay reads as a replay
+    timers.current.push(
+      window.setTimeout(() => {
+        automate();
+      }, 60),
+    );
+  }, [automate, clearTimers, setState]);
 
   const reset = useCallback(() => {
     clearTimers();
@@ -661,52 +598,53 @@ export function Manual() {
       if (!mine.length) return `${card?.label ?? ''} — NOTHING POINTS AT THIS YET`;
       return `${card?.label ?? ''} · ${mine.length} ${mine.length === 1 ? 'LINK' : 'LINKS'} — ${mine.map(linkLabel).join(' · ')}`;
     }
-    if (highlight?.kind === 'sources') return `${channels} LIVE CHANNELS, ${SOURCES.length + RECORDS.length} ITEMS — NOBODY OWNS THE WHOLE PICTURE`;
+    if (highlight?.kind === 'sources') return `${channels} LIVE CHANNELS, ${SOURCES.length + RECORDS.length} SIGNALS — NOBODY OWNS THE WHOLE PICTURE`;
     if (highlight?.kind === 'duplicates')
       return settled
         ? 'THE THREE DUPLICATES ARE SETTLED — EACH RECORD NOW HAS ONE OWNER'
         : `${duplicates} RECORDS EXIST TWICE — TWO SYSTEMS THINK THEY OWN EACH ONE`;
     if (highlight?.kind === 'confidence') return 'LOW BECAUSE 3 DUPLICATES, 2 UNOWNED RECORDS AND 1 UNSENT REPORT DISAGREE WITH EACH OTHER';
     if (highlight?.kind === 'tone' && highlight.tone === 'err')
-      return settled
-        ? '0 ERRORS — EVERY DUPLICATE WAS SETTLED WHERE IT WAS'
-        : '3 ERRORS — EVERY DUPLICATE IS THE SAME RECORD IN TWO PLACES';
+      return settled ? '0 ERRORS — EVERY DUPLICATE WAS SETTLED WHERE IT WAS' : '3 ERRORS — EVERY DUPLICATE IS THE SAME RECORD IN TWO PLACES';
     if (highlight?.kind === 'tone' && highlight.tone === 'warn')
-      return settled
-        ? '0 WARNINGS — NOTHING IS WAITING ON A HUMAN ANY MORE'
-        : '9 WARNINGS — WAITING, UNREAD, UNOWNED, DOUBLE-BOOKED, NEVER SENT';
+      return settled ? '0 WARNINGS — NOTHING IS WAITING ON A HUMAN ANY MORE' : '9 WARNINGS — WAITING, UNREAD, UNOWNED, DOUBLE-BOOKED, NEVER SENT';
     if (highlight?.kind === 'tone')
-      return settled
-        ? '12 RESOLVED — ONE OWNER AND ONE VERSION EACH'
-        : 'NOTHING IS RESOLVED YET — RUN THE AUTOMATION';
-    // nothing being inspected: the panel reports where the system ended up
+      return settled ? '12 RESOLVED — ONE OWNER AND ONE VERSION EACH' : 'NOTHING IS RESOLVED YET — RUN THE AUTOMATION';
     if (settled) return PHASE_COPY.done;
-    return 'MORE LINKS, LOW CONFIDENCE INCIDENTS';
+    return 'TWELVE SIGNALS, NO CORE — NOTHING IS COLLECTED';
   }, [running, settled, selected, highlight, phase, cards, channels, duplicates]);
 
-  const cardClass = (card: (typeof cards.all)[number]) => {
+  const cardClass = (row: 'source' | 'record', card: (typeof cards.all)[number], index: number) => {
     const classes: string[] = [card.tone];
-    // the card you picked is not the same state as the cards it reaches: one is
-    // framed, the others are lit, and everything they do not touch recedes
     const picked = !!selected && card.key === keyOf(selected.row, selected.id);
     const focused = focusKeys?.has(card.key) ?? false;
     if (picked) classes.push('selected');
     else if ((selected || highlight) && focused) classes.push('linked');
     else if ((selected || highlight) && focusKeys) classes.push('dim');
-    if (running && card.row === 'source' && SOURCES.findIndex((s) => s.id === card.id) < read) classes.push('active');
-    if (phase === 'flagging' && card.row === 'record' && RECORDS.find((r) => r.id === card.id)?.tone === 'err') classes.push('flash');
-    if (phase === 'resolving' && card.row === 'record' && RECORDS.slice(0, handledCount).some((r) => r.id === card.id)) classes.push('settling');
+    if (running && row === 'source' && index < read) classes.push('active');
+    if (phase === 'flagging' && row === 'record' && RECORDS.find((r) => r.id === card.id)?.tone === 'err') classes.push('flash');
+    if (phase === 'resolving' && row === 'record' && RESOLVE_ORDER.slice(0, handledCount).includes(card.id)) classes.push('settling');
     return classes.join(' ');
   };
 
-  const stageClass = `manual-stage ${running ? 'processing' : ''} ${settled ? 'settled' : ''} ${selected || highlight ? 'focused' : ''}`;
+  const headState = settled
+    ? { cls: 'ok', text: '12 SIGNALS, ONE SYSTEM' }
+    : running && phase === 'reading'
+      ? { cls: 'busy', text: `READING ${read}/${SOURCES.length} CHANNELS` }
+      : running
+        ? { cls: 'busy', text: `${SOURCES.length + RECORDS.length} SIGNALS CONVERGING` }
+        : { cls: 'err', text: `${SOURCES.length + RECORDS.length} SIGNALS ACROSS ${channels} CHANNELS` };
+
+  const coreValue = settled ? '12' : running ? String(handled) : '12';
+  const coreLabel = settled ? 'UNIFIED' : running ? 'CONVERGING' : 'NO CORE';
+  const stageMode = layout?.mode ?? 'ring';
 
   return (
     <section
       id="manual"
       ref={sectionRef}
       className={`chapter manual ${entered ? 'in' : ''} ${phase !== 'manual' ? 'fired' : ''}`}
-      aria-label="The manual world, and the automation that replaces it"
+      aria-label="The manual world, and the system that replaces it"
     >
       {/* HERO — the statement, with the system's own statistics beside it */}
       <div className="chapter-head manual-hero">
@@ -776,50 +714,57 @@ export function Manual() {
         </div>
       </div>
 
-      {/* the system, as it is right now */}
-      <div className="scatter">
-        <div className="sys-head">
-          <span className={`sys-head-state ${settled ? 'ok' : running ? 'busy' : 'err'}`}>
-            <span className="sys-dot" aria-hidden="true" />
-            {settled
-              ? '12 ITEMS, ONE SYSTEM'
-              : running && phase === 'reading'
-                ? `READING ${read}/${SOURCES.length} CHANNELS`
-                : `${SOURCES.length + RECORDS.length} ITEMS ACROSS ${channels} CHANNELS`}
+      {/* the living system, as it is right now */}
+      <div className="living">
+        <div className="living-head">
+          <span className={`living-head-state ${headState.cls}`}>
+            <span className="living-dot" aria-hidden="true" />
+            {headState.text}
           </span>
-          <span className="chapter-note sys-head-note">
+          <span className="chapter-note living-head-note">
             ILLUSTRATIVE SYSTEM —
             <br />
             SIMULATED DATA
           </span>
         </div>
 
-        <div className={stageClass} ref={stageRef} onClick={clear} role="presentation">
-          <div className="field-plane" ref={planeRef} aria-hidden="true">
-            <span className="field-grid" />
-            <span className="field-arcs" />
-            <span className="field-scan" />
-          </div>
-          <span className="field-focus" ref={focusRef} aria-hidden="true" />
+        <div
+          className={`living-stage ${stageMode} ${entered ? 'in' : ''} ${running ? 'processing' : ''} ${
+            settled ? 'settled' : ''
+          } ${selected || highlight ? 'focused' : ''}`}
+          ref={stageRef}
+          onClick={clear}
+          role="presentation"
+        >
+          <span className="living-grid" aria-hidden="true" />
+          <span className="living-glow" aria-hidden="true" />
 
-          {metrics.w > 0 && metrics.h > 0 && (
+          {layout && (
             <svg
-              className="field-links"
-              width={metrics.w}
-              height={metrics.h}
-              viewBox={`0 0 ${metrics.w} ${metrics.h}`}
+              className="living-wires"
+              width={layout.w}
+              height={layout.h}
+              viewBox={`0 0 ${layout.w} ${layout.h}`}
               aria-hidden="true"
               focusable="false"
             >
+              {/* ring guides — only meaningful when the signals are on a ring */}
+              {layout.mode === 'ring' && (
+                <>
+                  <ellipse className="living-ring outer" cx={layout.cx} cy={layout.cy} rx={layout.outerRx} ry={layout.outerRy} />
+                  <ellipse className="living-ring inner" cx={layout.cx} cy={layout.cy} rx={layout.innerRx} ry={layout.innerRy} />
+                  <line className="living-axis" x1={layout.cx} y1={8} x2={layout.cx} y2={layout.h - 8} />
+                </>
+              )}
               {wires.map((w) => {
                 const hot = activeLinks.has(w.id);
-                const classes = ['link', w.tone, w.weak ? 'broken' : '', hot ? 'hot' : ''].filter(Boolean).join(' ');
+                const classes = ['living-wire', w.tone, w.weak ? 'broken' : '', hot ? 'hot' : ''].filter(Boolean).join(' ');
                 return (
                   <g key={w.key} className={classes}>
-                    <path className="link-path" d={w.d} pathLength={100} />
+                    <path className="lw-path" d={w.d} pathLength={100} />
                     {!reduced && (hot || running) && (
                       <path
-                        className="link-bloom"
+                        className="lw-bloom"
                         d={w.d}
                         pathLength={100}
                         style={
@@ -830,17 +775,21 @@ export function Manual() {
                         }
                       />
                     )}
-                    <circle className="link-port" cx={w.a.x} cy={w.a.y} r="2.2" />
-                    <circle className="link-port" cx={w.b.x} cy={w.b.y} r="2.2" />
                     {!reduced && (hot || running) && (
-                      <circle className="link-pulse" r="1.9">
+                      <circle className="lw-pulse" r="1.9">
                         <animateMotion
                           dur={`${running ? 1.5 : 6 + (w.id.charCodeAt(1) % 4)}s`}
                           begin={`${(w.id.charCodeAt(1) % 4) * 0.5}s`}
                           repeatCount="indefinite"
                           path={w.d}
                         />
-                        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.14;0.8;1" dur={`${running ? 1.5 : 6}s`} repeatCount="indefinite" />
+                        <animate
+                          attributeName="opacity"
+                          values="0;1;1;0"
+                          keyTimes="0;0.14;0.8;1"
+                          dur={`${running ? 1.5 : 6}s`}
+                          repeatCount="indefinite"
+                        />
                       </circle>
                     )}
                   </g>
@@ -849,98 +798,72 @@ export function Manual() {
             </svg>
           )}
 
-          <div className="sys-rows">
-            {/* INPUT — the channels, each sitting on its own state */}
-            <div className="sys-row">
-              <p className="sys-row-label">
-                SOURCES <span>/ WAITING ON A HUMAN</span>
-              </p>
-              <div className="sys-cards">
-                {cards.sources.map((card, i) => (
-                  <button
-                    key={card.key}
-                    type="button"
-                    ref={(el) => {
-                      cardRefs.current.set(card.key, el);
-                    }}
-                    className={`manual-entry ${cardClass(card)}`}
-                    aria-pressed={selected?.row === 'source' && selected.id === card.id}
-                    aria-label={`${card.label} — ${card.status}. ${card.detail}.`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      pick('source', card.id);
-                    }}
-                    style={{ animationDelay: reduced ? undefined : `${700 + i * 60}ms` }}
-                    data-cursor="hot"
-                  >
-                    <span className="me-node">
-                      <span className="me-x" aria-hidden="true">
+          {/* the core: one system, every signal passes through it */}
+          {layout && (
+            <div className="living-core" style={{ left: `${layout.cx}px`, top: `${layout.cy}px` }}>
+              <span className="core-orbit" aria-hidden="true" />
+              <span className="core-orbit reverse" aria-hidden="true" />
+              <span className="core-disc" aria-hidden="true">
+                {!reduced && <span className="core-tick" key={`${handled}-${phase}`} />}
+              </span>
+              <span className="core-readout" aria-hidden="true">
+                <strong>{coreValue}</strong>
+                <em>{coreLabel}</em>
+              </span>
+            </div>
+          )}
+
+          {/* twelve signals: six sources outside, six records inside */}
+          {layout &&
+            [...layout.sources, ...layout.records].map((placed, i) => {
+              const isSource = i < layout.sources.length;
+              const card = isSource ? cards.sources.find((c) => c.id === placed.spec.id)! : cards.records.find((c) => c.id === placed.spec.id)!;
+              const row: 'source' | 'record' = isSource ? 'source' : 'record';
+              const idx = isSource ? i : i - layout.sources.length;
+              return (
+                <button
+                  key={`${row}:${placed.spec.id}`}
+                  type="button"
+                  className={`living-node ${row} ${cardClass(row, card, idx)}`}
+                  style={
+                    {
+                      left: `${placed.x}px`,
+                      top: `${placed.y}px`,
+                      '--enter-delay': reduced ? '0ms' : `${(isSource ? 520 : 700) + idx * 60}ms`,
+                    } as CSSProperties
+                  }
+                  aria-pressed={selected?.row === row && selected.id === placed.spec.id}
+                  aria-label={`${card.label} — ${card.status}. ${card.detail}.`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pick(row, placed.spec.id);
+                  }}
+                  data-cursor="hot"
+                >
+                  <span className="ln-body">
+                    <span className="ln-top">
+                      <span className="ln-mark" aria-hidden="true">
                         {MARK[card.tone]}
                       </span>
-                      <span className="me-glyph" aria-hidden="true">
+                      <span className="ln-glyph" aria-hidden="true">
                         <CardGlyph label={card.label} />
                       </span>
-                      <span className="me-type">{card.label}</span>
-                      <span className="me-idx" aria-hidden="true">
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <span className="me-stat">{card.status}</span>
-                      <span className="me-detail" aria-hidden="true">
-                        {card.detail}
+                      <span className="ln-idx" aria-hidden="true">
+                        {String(idx + 1).padStart(2, '0')}
                       </span>
                     </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* OUTPUT — what the channels have produced so far */}
-            <div className="sys-row">
-              <p className="sys-row-label">
-                RECORDS <span>/ NO SINGLE TRUTH</span>
-              </p>
-              <div className="sys-cards">
-                {cards.records.map((card, i) => (
-                  <button
-                    key={card.key}
-                    type="button"
-                    ref={(el) => {
-                      cardRefs.current.set(card.key, el);
-                    }}
-                    className={`scatter-cell ${cardClass(card)}`}
-                    aria-pressed={selected?.row === 'record' && selected.id === card.id}
-                    aria-label={`${card.label} — ${card.status}. ${card.detail}.`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      pick('record', card.id);
-                    }}
-                    style={{ animationDelay: reduced ? undefined : `${760 + i * 60}ms` }}
-                    data-cursor="hot"
-                  >
-                    <span className="sc-idx" aria-hidden="true">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="sc-head">
-                      <span className="me-glyph" aria-hidden="true">
-                        <CardGlyph label={card.label} />
-                      </span>
-                      <span className="cell-type">{card.label}</span>
-                    </span>
-                    <span className="cell-stat">{card.status}</span>
-                    <span className="cell-value">{card.detail}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+                    <span className="ln-type">{card.label}</span>
+                    <span className="ln-stat">{card.status}</span>
+                  </span>
+                </button>
+              );
+            })}
         </div>
 
         {/* the panel's own readout: counted from the board, never asserted */}
-        <div className="scatter-actions">
-          <p className="manual-legend">
+        <div className="living-foot">
+          <p className="living-legend">
             {(['err', 'warn', 'ok'] as Tone[]).map((tone) => {
-              const marks: Record<Tone, string> = { err: '✕', warn: '△', ok: '✓' };
-              // "0 RESOLVED" reads as a tally; "0 RESOLVEDS" does not
               const labels: Record<Tone, [string, string]> = {
                 err: ['ERROR', 'ERRORS'],
                 warn: ['WARNING', 'WARNINGS'],
@@ -951,19 +874,19 @@ export function Manual() {
                 <button
                   key={tone}
                   type="button"
-                  className={`lg ${tone} ${active ? 'picked' : ''}`}
+                  className={`living-lg ${tone} ${active ? 'picked' : ''}`}
                   aria-pressed={active}
                   onClick={() => pickHighlight({ kind: 'tone', tone })}
                   data-cursor="hot"
                 >
-                  <span aria-hidden="true">{marks[tone]}</span>
-                  <span className="lg-n">{tones[tone]}</span>
+                  <span aria-hidden="true">{MARK[tone]}</span>
+                  <span className="lgl-n">{tones[tone]}</span>
                   {labels[tone][tones[tone] === 1 ? 0 : 1]}
                 </button>
               );
             })}
           </p>
-          <p className="sys-note" aria-live="polite">
+          <p className="living-note" aria-live="polite">
             {note}
           </p>
         </div>
@@ -974,19 +897,19 @@ export function Manual() {
         <button
           type="button"
           className={`system-btn solid ${running ? 'fired' : ''}`}
-          onClick={automate}
+          onClick={settled ? replay : automate}
           disabled={running}
           data-cursor="hot"
         >
-          {running ? 'ANALYZING…' : settled ? 'AUTOMATED ✓' : 'AUTOMATE THIS →'}
+          {running ? 'CONVERGING…' : settled ? '↺ REPLAY CONVERGENCE' : 'CONVERGE THE SYSTEM →'}
         </button>
-        {phase !== 'manual' && (
+        {phase !== 'manual' && !running && (
           <button type="button" className="chip" onClick={reset}>
             ↺ RESET SYSTEM
           </button>
         )}
         <p className="manual-caption">
-          {settled ? 'SAME 12 ITEMS — ONE SYSTEM, ONE OWNER, ONE VERSION' : 'SEE THE SAME 12 ITEMS IN AN AI-LED SYSTEM'}
+          {settled ? 'SAME 12 SIGNALS — ONE SYSTEM, ONE OWNER, ONE VERSION' : 'WATCH 12 DISCONNECTED SIGNALS BECOME ONE SYSTEM'}
         </p>
       </div>
     </section>
